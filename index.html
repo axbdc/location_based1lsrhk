@@ -1,20 +1,20 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
     <head>
         <meta charset="utf-8" />
+        <title>AR Sem Marcador e Sem GPS (WebXR)</title>
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
-        <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
-        <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
-        <script src="https://raw.githack.com/donmccurdy/aframe-extras/master/dist/aframe-extras.loaders.min.js"></script>
-    </head>
+        
+        <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+        
+        <script src="https://cdn.jsdelivr.net/gh/aframevr/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+        
+        </head>
 
     <body style="margin: 0; overflow: hidden;">
-        <a-scene
-            renderer="logarithmicDepthBuffer: true;"
-            embedded
-            loading-screen="enabled: false;"
-            arjs="sourceType: webcam; debugUIEnabled: false;"
+        <a-scene 
+            webxr="optionalFeatures: [hit-test, local-floor];" 
+            renderer="antialias: true; physicallyCorrectLights: true; colorManagement: true;"
         >
             <a-assets>
                 <a-asset-item
@@ -23,57 +23,71 @@
                 ></a-asset-item>
             </a-assets>
 
+            <template id="placement-asset">
                 <a-entity
-                    look-at="[gps-camera]"
-                    animation-mixer="loop: repeat"
                     gltf-model="#animated-asset"
-                    scale="2.185143263440919 2.185143263440919 2.185143263440919"
-                    gps-entity-place="latitude: 39.006068058095465; longitude: -9.414608962833883;"
+                    animation-mixer="clip: *; loop: repeat" 
+                    scale="0.5 0.5 0.5" 
+                    rotation="0 0 0"
                 ></a-entity>
-                <a-entity
-                    look-at="[gps-camera]"
-                    animation-mixer="loop: repeat"
-                    gltf-model="#animated-asset"
-                    scale="2.185143263440919 2.185143263440919 2.185143263440919"
-                    gps-entity-place="latitude: 39.006026372300724; longitude: -9.414587505161764;"
-                ></a-entity>
-                <a-entity
-                    look-at="[gps-camera]"
-                    animation-mixer="loop: repeat"
-                    gltf-model="#animated-asset"
-                    scale="2.185143263440919 2.185143263440919 2.185143263440919"
-                    gps-entity-place="latitude: 39.00603470946164; longitude: -9.414802081882955;"
-                ></a-entity>
-                <a-entity
-                    look-at="[gps-camera]"
-                    animation-mixer="loop: repeat"
-                    gltf-model="#animated-asset"
-                    scale="2.185143263440919 2.185143263440919 2.185143263440919"
-                    gps-entity-place="latitude: 39.0059846864814; longitude: -9.414726980030538;"
-                ></a-entity>
-                <a-entity
-                    look-at="[gps-camera]"
-                    animation-mixer="loop: repeat"
-                    gltf-model="#animated-asset"
-                    scale="2.185143263440919 2.185143263440919 2.185143263440919"
-                    gps-entity-place="latitude: 39.00600136081208; longitude: -9.414844997227194;"
-                ></a-entity>
-                <a-entity
-                    look-at="[gps-camera]"
-                    animation-mixer="loop: repeat"
-                    gltf-model="#animated-asset"
-                    scale="2.185143263440919 2.185143263440919 2.185143263440919"
-                    gps-entity-place="latitude: 39.00599219000702; longitude: -9.414630420506002;"
-                ></a-entity>
-                <a-entity
-                    look-at="[gps-camera]"
-                    animation-mixer="loop: repeat"
-                    gltf-model="#animated-asset"
-                    scale="2.185143263440919 2.185143263440919 2.185143263440919"
-                    gps-entity-place="latitude: 39.00620395364122; longitude: -9.414759166538717;"
-                ></a-entity>
+            </template>
 
-            <a-camera gps-camera rotation-reader></a-camera>
+            <a-camera 
+                position="0 1.6 0"
+                raycaster="objects: .collidable"
+                cursor="rayOrigin: mouse"
+            >
+            </a-camera>
+
+            <a-entity id="placement-plane-detector" placement-controller></a-entity>
+
+            <script>
+                // Componente que clona o asset no ponto de interseção (hit) do WebXR
+                AFRAME.registerComponent('placement-controller', {
+                    init: function () {
+                        const scene = this.el.sceneEl;
+                        
+                        // O objeto a ser clonado
+                        const template = document.getElementById('placement-asset');
+                        
+                        // Variável para armazenar a matriz de transformação do rastreamento de hit-test
+                        let hitTestResult = null;
+                        
+                        // 1. Ouvir o evento de Hit-Test quando o AR está ativo
+                        scene.addEventListener('ar-hit-test-start', (event) => {
+                            hitTestResult = event.detail.xrHitResult;
+                        });
+                        
+                        // 2. Ouvir o clique/toque (tap) para colocar o objeto
+                        scene.addEventListener('click', (event) => {
+                            if (!hitTestResult) return;
+
+                            // Cria um clone do modelo 3D
+                            const newAsset = document.importNode(template.content, true).children[0];
+
+                            // Obtém a posição e orientação da matriz de transformação do hit-test
+                            const { position, rotation } = hitTestResult;
+                            
+                            // Define a nova posição (o 'y' pode precisar de um pequeno ajuste)
+                            newAsset.setAttribute('position', { 
+                                x: position.x, 
+                                y: position.y + (newAsset.getAttribute('scale').y / 2), // Eleva um pouco para não 'cair'
+                                z: position.z 
+                            });
+
+                            // Opcional: define a rotação do objeto (por exemplo, para que fique virado para o utilizador)
+                            // A rotação baseada no hit-test é mais complexa e depende da API WebXR
+                            
+                            scene.appendChild(newAsset);
+                            
+                            // Opcional: Parar de detetar hits depois de colocar o primeiro objeto
+                            // scene.components['hit-test-viewer'].setHitTest(false);
+                        });
+
+                        console.log("Sistema de Colocação AR Inicializado (WebXR)");
+                    }
+                });
+            </script>
         </a-scene>
     </body>
 </html>
